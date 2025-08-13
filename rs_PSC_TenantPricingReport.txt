@@ -51,10 +51,10 @@ GROUP BY p.scode, p.saddr1, p.hmy, t.hMyPerson, t.sfirstname, t.slastname,
 
 //select header 
 select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_Code,
-  DATENAME(WEEKDAY, getdate()) + ', ' +
-  DATENAME(MONTH, getdate()) + ' ' +
-  CAST(DAY(getdate()) AS VARCHAR) + ', ' +
-  CAST(YEAR(getdate()) AS VARCHAR) 
+  DATENAME(WEEKDAY, '#AsOfDate#') + ', ' +
+  DATENAME(MONTH, '#AsOfDate#') + ' ' +
+  CAST(DAY('#AsOfDate#') AS VARCHAR) + ', ' +
+  CAST(YEAR('#AsOfDate#') AS VARCHAR) 
   AS ReportDateRange,
 	   '#@@outputtype#' OutputType
 	from property p    
@@ -69,7 +69,7 @@ select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_C
     FROM
       unit_Status us1
     WHERE
-      convert(date, us1.dtstart, 101) >= convert(datetime, getdate(), 101)
+      convert(date, us1.dtstart, 101) >= convert(datetime, '#AsOfDate#', 101)
     GROUP BY
       us1.hunit
   ) maxus on maxus.hunit = u.hmy
@@ -86,7 +86,7 @@ select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_C
       INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
       LEFT OUTER JOIN param pm On pm.hChart = 0
     WHERE
-      convert(date, c1.dtfrom, 101) >= convert(datetime, getdate(), 101)
+      convert(date, c1.dtfrom, 101) >= convert(datetime, '#AsOfDate#', 101)
       and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
     GROUP BY
       c1.hunit,
@@ -95,16 +95,15 @@ select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_C
   and maxcam.hTenant = t.hMyPerson
   left outer join camrule c ON c.hMy = maxcam.hMy
 
- --LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
+ /*LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy*/
   inner join tenstatus ts on (t.istatus = ts.istatus)
   left outer join memo mem on t.HMYPERSON = mem.HFILERCD
   AND mem.IFILETYPE = 1
   and mem.ifield = 1
 where
-  ux.dtLeaseFrom >= convert(datetime, getdate(), 101)
-  AND p.hMy in (3)
+  ux.dtLeaseFrom >= convert(datetime, '#AsOfDate#', 101)
   AND p.itype = 3
-
+#conditions#
 //end select 
 
 
