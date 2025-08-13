@@ -47,6 +47,8 @@ GROUP BY
 
 //select display 
 
+
+
 IF OBJECT_ID('tempdb..#tempDeposits') IS NOT NULL
     DROP TABLE #tempDeposits;
 
@@ -139,7 +141,9 @@ ISNULL(cprev.DESTIMATED, 0) AS LastPrice,
                                                                     END) 
                                                       End
         ELSE 0
-    END TenantRent
+    END TenantRent,
+	case when discounts.Description is NULL then '' else discounts.Description  end as Discount_Desc,
+	   STRING_AGG(discounts.Description, ', ') AS Promotions
 
 
 from
@@ -227,6 +231,24 @@ LEFT OUTER JOIN camrule cprev ON cprev.hMy = prevcam.hMy
   left outer join memo mem on t.HMYPERSON = mem.HFILERCD
   AND mem.IFILETYPE = 1
   and mem.ifield = 1
+  left join (
+  select distinct
+    ls.hproperty as PropertyId,
+    ut.hmy as UnitTypeId,
+    ut.sdesc as UnitTypeDesc,
+    ls.sDesc as Description
+  from LeasingSpecials ls
+  join UNITTYPE ut on ls.hUnitType = ut.HMY
+  join chargtyp ct on ls.hchargecode = ct.hmy
+  inner join property p on p.hmy = ls.hproperty
+  where 1=1
+ and p.hmy in (3)
+
+) discounts 
+on discounts.PropertyId = p.hmy
+and discounts.UnitTypeId = ut.hmy
+	--and p.hmy in (3)
+   
 where
   ux.dtLeaseFrom >= convert(datetime, N'08/12/2025', 101)
   AND p.hMy in (3)
@@ -261,9 +283,12 @@ Group by
   ux.iNoticeType,
   c.dtfrom,
   c.destimated,
-  cprev.destimated
+  cprev.destimated,
+  discounts.Description
 Order By
   putcode1,
   ux.dtLeaseFrom
+
+  
 
 //end select 
