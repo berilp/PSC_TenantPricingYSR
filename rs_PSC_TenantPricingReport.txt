@@ -1,0 +1,186 @@
+//notes 
+New report from Carlyn for Tenant pricing Updates
+
+//end notes 
+
+
+//select display 
+
+SELECT
+  t.hMyPerson TenantId,
+  case when isnull(tc.hUnit, 0) = 0 then t.hUnit else tc.hUnit end hUnit,
+  sum(
+    case when d.hAcct = 496
+    and tc.hRetentionAcct = 15 then d.sAmount else 0 end
+  ) Deposit0,
+  0 Deposit1,
+  0 Deposit2,
+  0 Deposit3,
+  0 Deposit4,
+  0 Deposit5,
+  0 Deposit6,
+  0 Deposit7,
+  0 Deposit8,
+  0 Deposit9 INTO #tempDeposits
+FROM
+  Trans tr
+  INNER JOIN tenant t ON t.hMyPerson = tr.hPerson
+  INNER Join Detail d ON (d.hInvorrec = tr.hMy)
+  INNER Join Trans tc ON (d.hChkOrChg = tc.hMy)
+WHERE
+  t.hProperty IN (3)
+  AND tr.iType = 6
+  AND tc.iType = 7
+  AND d.SAMOUNT > 0
+  AND d.hAcct IN (496)
+  AND tc.hRetentionAcct IN (15)
+  AND tr.uPostDate <= convert(datetime, N'08/01/2025', 101)
+GROUP BY
+  t.hMyPerson,
+  case when isnull(tc.hUnit, 0) = 0 then t.hUnit else tc.hUnit end
+  
+--query starts here 
+
+Select
+  p.Scode pscode,
+  p.saddr1 pname,
+  u.HMY UnitID,
+  t.HMYPERSON TenantID,
+  u.sCode uscode,
+  t.sCode tscode,
+  p.SCODE + RIGHT(
+    RTRIM(
+      N'00000000' + ISNULL(cast(u.SCODE as varchar(8)), '')
+    ),
+    8
+  ) + t.SCODE as putcode1,
+  Case When t.sLastname is NULL Then N'VACANT' else t.sfirstname + N' ' + t.slastname End resident,
+  Case upper(us.sStatus) when N'VACANT UNRENTED READY' THEN 0 When N'VACANT UNRENTED NOT READY' THEN 0 When N'MODEL' Then 0 When N'DOWN' Then 0 When N'ADMIN' Then 0 ELSE isnull(c.DESTIMATED, 0) END rent,
+  isnull(dep.Deposit0, 0) deposit,
+  case when ux.dtMoveOut is not null
+  AND Isnull(ux.bActive, 0) = 0 then N'Past' when isnull(ux.bActive, 0) = -1
+  AND ux.dtNotice is null
+  AND t.iStatus NOT IN(2, 6) then N'Current' when isnull(ux.bActive, 0) = -1
+  AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then N'Auction' else N'Notice' end else ts.status end status,
+  ux.dtleasefrom leasefrom,
+  ux.dtLeaseTo leaseto,
+  ux.dtMoveIn movein,
+  ux.dtNotice noticedt,
+  ux.dtMoveOut moveout,
+  mem.STEXT notes,
+  Case When substring(t.sPhoneNum0, 4, 1) = N'-'
+  or substring(t.sPhoneNum0, 1, 1) = N'(' Then t.sPhoneNum0 When len(rtrim(t.sPhoneNum0)) > 7
+  and len(rtrim(t.sPhoneNum0)) < 11 Then N'(' + substring(t.sPhoneNum0, 1, 3) + N')' + substring(t.sPhoneNum0, 4, 3) + N'-' + substring(t.sPhoneNum0, 7, 7) When len(rtrim(t.sPhoneNum0)) > 10 Then N'(' + substring(t.sPhoneNum0, 1, 3) + N')' + substring(t.sPhoneNum0, 4, 3) + N'-' + substring(t.sPhoneNum0, 7, 4) + N' x' + substring (t.sphonenum0, 11, 5) When len(t.sPhoneNum0) > 3 Then substring(t.sPhoneNum0, 1, 3) + N'-' + substring(t.sPhoneNum0, 4, 5) Else t.sPhoneNum0 End offphone,
+  Case When substring(t.sPhoneNum1, 4, 1) = N'-'
+  or substring(t.sPhoneNum1, 1, 1) = N'(' Then t.sPhoneNum1 When len(rtrim(t.sPhoneNum1)) > 7
+  and len(rtrim(t.sPhoneNum1)) < 11 Then N'(' + substring(t.sPhoneNum1, 1, 3) + N')' + substring(t.sPhoneNum1, 4, 3) + N'-' + substring(t.sPhoneNum1, 7, 7) When len(rtrim(t.sPhoneNum1)) > 10 Then N'(' + substring(t.sPhoneNum1, 1, 3) + N')' + substring(t.sPhoneNum1, 4, 3) + N'-' + substring(t.sPhoneNum1, 7, 4) + N' x' + substring (t.sPhoneNum1, 11, 5) When len(t.sPhoneNum1) > 3 Then substring(t.sPhoneNum1, 1, 3) + N'-' + substring(t.sPhoneNum1, 4, 5) Else t.sPhoneNum1 End homephone,
+  Case When substring(t.sphonenum3, 4, 1) = N'-'
+  or substring(t.sphonenum3, 1, 1) = N'(' Then t.sphonenum3 When len(rtrim(t.sphonenum3)) > 7
+  and len(rtrim(t.sphonenum3)) < 11 Then N'(' + substring(t.sphonenum3, 1, 3) + N')' + substring(t.sphonenum3, 4, 3) + N'-' + substring(t.sphonenum3, 7, 7) When len(rtrim(t.sphonenum3)) > 10 Then N'(' + substring(t.sphonenum3, 1, 3) + N')' + substring(t.sphonenum3, 4, 3) + N'-' + substring(t.sphonenum3, 7, 4) + N' x' + substring (t.sphonenum3, 11, 5) When len(t.sphonenum3) > 3 Then substring(t.sphonenum3, 1, 3) + N'-' + substring(t.sphonenum3, 4, 5) Else t.sphonenum3 End mobile,
+  t.semail email,
+  N'Tel Num(' + (
+    select
+      [text]
+    from
+      label
+    where
+      type = N'PMLABEL'
+      and subtype = N'PHONE LABEL'
+      and element = 0
+  ) + N')' PhoneHeader0,
+  N'Tel Num(' + (
+    select
+      [text]
+    from
+      label
+    where
+      type = N'PMLABEL'
+      and subtype = N'PHONE LABEL'
+      and element = 1
+  ) + N')' PhoneHeader1,
+  case when ux.dtMoveOut is not null
+  AND Isnull(ux.bActive, 0) = 0 then 1 when isnull(ux.bActive, 0) = -1
+  AND ux.dtNotice is null
+  AND t.iStatus NOT IN(2, 6) then 0 when isnull(ux.bActive, 0) = -1
+  AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then 3 else 4 end else ts.istatus end TenantStatus,
+  t.hProspect ProspectId
+from
+  property p
+  inner join tenant t on t.hProperty = p.hMy
+  INNER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson
+  inner join unit u on u.hMy = ux.hUnit
+  INNER JOIN (
+    SELECT
+      max(us1.hmy) hmy,
+      us1.hunit hunit
+    FROM
+      unit_Status us1
+    WHERE
+      convert(date, us1.dtstart, 101) >= convert(datetime, N'08/12/2025', 101)
+    GROUP BY
+      us1.hunit
+  ) maxus on maxus.hunit = u.hmy
+  INNER JOIN unit_status us on us.hmy = maxus.hmy
+  AND us.hunit = maxus.hunit
+  LEFT OUTER JOIN (
+    SELECT
+      max(c1.hmy) hmy,
+      c1.hunit,
+      c1.hTenant
+    FROM
+      camrule c1
+      INNER JOIN unit u1 On u1.hMy = c1.hUnit
+      INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
+      LEFT OUTER JOIN param pm On pm.hChart = 0
+    WHERE
+      convert(date, c1.dtfrom, 101) >= convert(datetime, N'08/12/2025', 101)
+      and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
+    GROUP BY
+      c1.hunit,
+      c1.hTenant
+  ) maxcam on maxcam.hunit = u.hmy
+  and maxcam.hTenant = t.hMyPerson
+  left outer join camrule c ON c.hMy = maxcam.hMy
+  LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
+  inner join tenstatus ts on (t.istatus = ts.istatus)
+  left outer join memo mem on t.HMYPERSON = mem.HFILERCD
+  AND mem.IFILETYPE = 1
+  and mem.ifield = 1
+where
+  ux.dtLeaseFrom >= convert(datetime, N'08/12/2025', 101)
+  AND p.hMy in (3)
+  AND p.itype = 3
+Group by
+  p.scode,
+  p.saddr1,
+  u.hmy,
+  t.hmyperson,
+  u.scode,
+  t.scode,
+  p.scode,
+  t.slastname,
+  t.sfirstname,
+  isnull(c.DESTIMATED, 0),
+  us.sstatus,
+  isnull(dep.Deposit0, 0),
+  ts.status,
+  ux.dtleasefrom,
+  ux.dtleaseto,
+  ux.dtmovein,
+  ux.dtmoveout,
+  ux.dtNotice,
+  ux.bActive,
+  mem.stext,
+  t.sphonenum0,
+  t.sphonenum1,
+  t.sphonenum3,
+  t.semail,
+  t.istatus,
+  t.hprospect,
+  ts.iStatus,
+  ux.iNoticeType
+Order By
+  putcode1,
+  ux.dtLeaseFrom
+
+//end select 
