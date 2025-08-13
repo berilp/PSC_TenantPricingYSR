@@ -1,0 +1,356 @@
+//Notes
+	Copyright (c) 2025 by Yardi Systems
+	NAME
+		Correspondence: YSR Setup Download
+	DESCRIPTION
+		Platform    : SQL Server
+		Loads the Correspondence Custom Report Setup.
+		Report : ...SM Tenant Pricing Report (SM_TenantPricing) 
+	PACKAGE CREATED ON
+		Date & Time : 8/13/2025 7:35:07 PM
+	VERSION
+		CorrespondencePIv07.13
+	REPORT NOTES
+		For creating hooks for the report, follow below naming of Stored Procedure.
+		YSR_Generate_Before_SM_TenantPricing
+		YSR_Generate_After_SM_TenantPricing
+		
+//End Notes
+//SQL
+/* Delete YSR Report Setup but retain hmy */ 
+EXEC YSR_DeleteReportSetup 'SM_TenantPricing', 1 
+
+/* Insert or Update YSR Report Setup */ 
+UPDATE CustomCorrespMerging 
+SET sCode='SM_TenantPricing',sName='...SM Tenant Pricing Report',sScriptFileName='',sSELECT='select distinct p.hmy phmy, isNull(p.saddr1,'''') PropertyName, p.scode Property_Code,
+  DATENAME(WEEKDAY, getdate()) + '', '' +
+  DATENAME(MONTH, getdate()) + '' '' +
+  CAST(DAY(getdate()) AS VARCHAR) + '', '' +
+  CAST(YEAR(getdate()) AS VARCHAR) 
+  AS ReportDateRange
+	from property p    
+  inner join tenant t on t.hProperty = p.hMy
+  INNER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson
+  inner join unit u on u.hMy = ux.hUnit
+  inner join unittype ut on ut.hmy = u.hunittype
+  INNER JOIN (
+    SELECT
+      max(us1.hmy) hmy,
+      us1.hunit hunit
+    FROM
+      unit_Status us1
+    WHERE
+      convert(date, us1.dtstart, 101) >= convert(datetime, getdate(), 101)
+    GROUP BY
+      us1.hunit
+  ) maxus on maxus.hunit = u.hmy
+  INNER JOIN unit_status us on us.hmy = maxus.hmy
+  AND us.hunit = maxus.hunit
+  LEFT OUTER JOIN (
+    SELECT
+      max(c1.hmy) hmy,
+      c1.hunit,
+      c1.hTenant
+    FROM
+      camrule c1
+      INNER JOIN unit u1 On u1.hMy = c1.hUnit
+      INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
+      LEFT OUTER JOIN param pm On pm.hChart = 0
+    WHERE
+      convert(date, c1.dtfrom, 101) >= convert(datetime, getdate(), 101)
+      and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
+    GROUP BY
+      c1.hunit,
+      c1.hTenant
+  ) maxcam on maxcam.hunit = u.hmy
+  and maxcam.hTenant = t.hMyPerson
+  left outer join camrule c ON c.hMy = maxcam.hMy
+
+ --LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
+  inner join tenstatus ts on (t.istatus = ts.istatus)
+  left outer join memo mem on t.HMYPERSON = mem.HFILERCD
+  AND mem.IFILETYPE = 1
+  and mem.ifield = 1
+where
+  ux.dtLeaseFrom >= convert(datetime, getdate(), 101)
+  AND p.itype = 3
+#conditions#',sKeyCols='Property_Code',bInactive=0,bNewScreenOutput =1,bTabbedOutput =1,bTitleUsingFreezePanes =0,iObjectType=0,
+     sHRecord='',
+     hAttachment=(SELECT hmy FROM AttachmentType WHERE UPPER(sDesc) =UPPER('') AND iObjectType =0),
+     hEmailTemplate=(SELECT hmy FROM Email_Template WHERE UPPER(sName) =UPPER('') AND iType =0),
+     hEmailToRole=(SELECT hmy FROM Role WHERE UPPER(sDesc) =UPPER('') AND iObjectType =0),
+     bIncludeAllContacts=0,
+     bMergeReportsWithNoEmailId=0,
+     bAttachReportChecked=0,
+     bEmailReportChecked=0,
+     bShowOnPortalChecked=0,
+     sMergedFileEmailTo='' ,
+     sEmailType='' ,
+     sNotes='' ,
+     sReportOutputPath='' ,
+     bSchedulerRpt='0' ,
+     bLongRunRpt='0' ,     iDgSignObjectType =0,
+     sDgSignHRecord ='' ,
+
+     bHideFromGenerateDropDown =0 ,
+     sQRColumns='', 
+     iReportType =0 ,
+     iWizardStep =0 ,
+     bWizardCompleted =0 ,
+     bAlwaysPreview =0 ,
+     sHelpTopic='', 
+     sAttachDescCol='' 
+WHERE UPPER(sCode)=UPPER('SM_TenantPricing')
+;
+INSERT INTO CustomCorrespMerging(sCode,sName,sScriptFileName,sSELECT,sKeyCols,bInactive,bNewScreenOutput,bTabbedOutput,bTitleUsingFreezePanes,iObjectType,sHRecord,hAttachment,hEmailTemplate,hEmailToRole,sMergedFileEmailTo,sEmailType,sNotes,bIncludeAllContacts,bMergeReportsWithNoEmailId,bAttachReportChecked,bEmailReportChecked,bShowOnPortalChecked,sReportOutputPath,bSchedulerRpt,bLongRunRpt,iDgSignObjectType,sDgSignHRecord,bHideFromGenerateDropDown,sQRColumns,iReportType,iWizardStep,bWizardCompleted,bAlwaysPreview,sHelpTopic,sAttachDescCol)
+SELECT 'SM_TenantPricing','...SM Tenant Pricing Report','','select distinct p.hmy phmy, isNull(p.saddr1,'''') PropertyName, p.scode Property_Code,
+  DATENAME(WEEKDAY, getdate()) + '', '' +
+  DATENAME(MONTH, getdate()) + '' '' +
+  CAST(DAY(getdate()) AS VARCHAR) + '', '' +
+  CAST(YEAR(getdate()) AS VARCHAR) 
+  AS ReportDateRange
+	from property p    
+  inner join tenant t on t.hProperty = p.hMy
+  INNER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson
+  inner join unit u on u.hMy = ux.hUnit
+  inner join unittype ut on ut.hmy = u.hunittype
+  INNER JOIN (
+    SELECT
+      max(us1.hmy) hmy,
+      us1.hunit hunit
+    FROM
+      unit_Status us1
+    WHERE
+      convert(date, us1.dtstart, 101) >= convert(datetime, getdate(), 101)
+    GROUP BY
+      us1.hunit
+  ) maxus on maxus.hunit = u.hmy
+  INNER JOIN unit_status us on us.hmy = maxus.hmy
+  AND us.hunit = maxus.hunit
+  LEFT OUTER JOIN (
+    SELECT
+      max(c1.hmy) hmy,
+      c1.hunit,
+      c1.hTenant
+    FROM
+      camrule c1
+      INNER JOIN unit u1 On u1.hMy = c1.hUnit
+      INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
+      LEFT OUTER JOIN param pm On pm.hChart = 0
+    WHERE
+      convert(date, c1.dtfrom, 101) >= convert(datetime, getdate(), 101)
+      and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
+    GROUP BY
+      c1.hunit,
+      c1.hTenant
+  ) maxcam on maxcam.hunit = u.hmy
+  and maxcam.hTenant = t.hMyPerson
+  left outer join camrule c ON c.hMy = maxcam.hMy
+
+ --LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
+  inner join tenstatus ts on (t.istatus = ts.istatus)
+  left outer join memo mem on t.HMYPERSON = mem.HFILERCD
+  AND mem.IFILETYPE = 1
+  and mem.ifield = 1
+where
+  ux.dtLeaseFrom >= convert(datetime, getdate(), 101)
+  AND p.itype = 3
+#conditions#','Property_Code',0,1,1,0,0,''
+      ,(SELECT hmy FROM AttachmentType WHERE UPPER(sDesc) =UPPER('') AND iObjectType =0)
+      ,(SELECT hmy FROM Email_Template WHERE UPPER(sName) =UPPER('') AND iType =0)
+      ,(SELECT hmy FROM Role WHERE UPPER(sDesc) =UPPER('') AND iObjectType =0)
+      ,''
+      ,''
+      ,''
+      ,0
+      ,0
+      ,0
+      ,0
+      ,0
+      ,''
+      ,'0'
+      ,'0'
+      ,0,''
+      ,0
+      ,''
+      ,0
+      ,0
+      ,0
+      ,0
+      ,''
+      ,''
+WHERE NOT EXISTS(SELECT 1 FROM CustomCorrespMerging WHERE UPPER(sCode)=UPPER('SM_TenantPricing'))
+;
+/* Insert or UPDATE Digital Signature for SM_TenantPricing */ 
+/* Insert or UPDATE Additional Attachment & Email for SM_TenantPricing */ 
+/* Insert or UPDATE Filters Setup for SM_TenantPricing */ 
+UPDATE CustomCorrespFilters 
+SET hCustomCorrespMerging =(SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode) = UPPER('SM_TenantPricing')),iMaxWidth=0,bInactive=0,bShowInTitle=0,sFieldName='phmy',
+   sLabel='Property',sSequence='01',sType='Lookup List',sMandatory='True',sListValues='',sIsQuery='False',sLookupName='ysiPropertyOrListLookup',sPopulatedInURL='',
+   sMultiple='True',sParent='',sCodeToID='',sRowNumber='01',sColumnView='1'
+WHERE hMy=(SELECT ISNULL(Max(crf1.hMy),0) 
+             FROM CustomCorrespFilters crf1 
+             INNER JOIN CustomCorrespMerging crm1 ON crf1.hCustomCorrespMerging=crm1.HMY  
+             WHERE crf1.hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))
+             AND UPPER(crf1.sFieldName)=UPPER('phmy') )
+;
+INSERT INTO CustomCorrespFilters(hCustomCorrespMerging,iMaxWidth,bInactive,bShowInTitle,sFieldName,sLabel,sSequence,sType,sMandatory,sListValues,sIsQuery,sLookupName,sPopulatedInURL, sMultiple,sParent,sCodeToID,sRowNumber,sColumnView)
+SELECT (SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')),0,0,0,'phmy','Property','01','Lookup List','True','','False','ysiPropertyOrListLookup','','True','','','01','1'
+WHERE NOT EXISTS( 
+                 SELECT 1 
+                 FROM CustomCorrespFilters 
+                 WHERE UPPER(sFieldName)=UPPER('phmy')
+                 AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')))
+;
+UPDATE CustomCorrespFilters 
+SET hCustomCorrespMerging =(SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode) = UPPER('SM_TenantPricing')),iMaxWidth=0,bInactive=0,bShowInTitle=0,sFieldName='FromDate',
+   sLabel='From Date',sSequence='02',sType='Date',sMandatory='False',sListValues='',sIsQuery='False',sLookupName='',sPopulatedInURL='',
+   sMultiple='False',sParent='',sCodeToID='',sRowNumber='02',sColumnView='1'
+WHERE hMy=(SELECT ISNULL(Max(crf1.hMy),0) 
+             FROM CustomCorrespFilters crf1 
+             INNER JOIN CustomCorrespMerging crm1 ON crf1.hCustomCorrespMerging=crm1.HMY  
+             WHERE crf1.hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))
+             AND UPPER(crf1.sFieldName)=UPPER('FromDate') )
+;
+INSERT INTO CustomCorrespFilters(hCustomCorrespMerging,iMaxWidth,bInactive,bShowInTitle,sFieldName,sLabel,sSequence,sType,sMandatory,sListValues,sIsQuery,sLookupName,sPopulatedInURL, sMultiple,sParent,sCodeToID,sRowNumber,sColumnView)
+SELECT (SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')),0,0,0,'FromDate','From Date','02','Date','False','','False','','','False','','','02','1'
+WHERE NOT EXISTS( 
+                 SELECT 1 
+                 FROM CustomCorrespFilters 
+                 WHERE UPPER(sFieldName)=UPPER('FromDate')
+                 AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')))
+;
+UPDATE CustomCorrespFilters 
+SET hCustomCorrespMerging =(SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode) = UPPER('SM_TenantPricing')),iMaxWidth=0,bInactive=0,bShowInTitle=0,sFieldName='ToDate',
+   sLabel='To Date',sSequence='03',sType='Date',sMandatory='False',sListValues='',sIsQuery='False',sLookupName='',sPopulatedInURL='',
+   sMultiple='False',sParent='',sCodeToID='',sRowNumber='03',sColumnView='1'
+WHERE hMy=(SELECT ISNULL(Max(crf1.hMy),0) 
+             FROM CustomCorrespFilters crf1 
+             INNER JOIN CustomCorrespMerging crm1 ON crf1.hCustomCorrespMerging=crm1.HMY  
+             WHERE crf1.hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))
+             AND UPPER(crf1.sFieldName)=UPPER('ToDate') )
+;
+INSERT INTO CustomCorrespFilters(hCustomCorrespMerging,iMaxWidth,bInactive,bShowInTitle,sFieldName,sLabel,sSequence,sType,sMandatory,sListValues,sIsQuery,sLookupName,sPopulatedInURL, sMultiple,sParent,sCodeToID,sRowNumber,sColumnView)
+SELECT (SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')),0,0,0,'ToDate','To Date','03','Date','False','','False','','','False','','','03','1'
+WHERE NOT EXISTS( 
+                 SELECT 1 
+                 FROM CustomCorrespFilters 
+                 WHERE UPPER(sFieldName)=UPPER('ToDate')
+                 AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')))
+;
+/* Insert or UPDATE Filter Mappings for SM_TenantPricing */ 
+/* Insert or UPDATE Top-Level Column Setup for SM_TenantPricing */ 
+/* Insert or UPDATE Report Setup for rpt */ 
+UPDATE CustomCorrespSetup 
+SET sCode='rpt',sName='',hCustomCorrespMerging =(SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode) =UPPER('SM_TenantPricing')),
+    hCustomCorrespStANDardList=(SELECT hmy FROM CustomCorrespStANDardList WHERE UPPER(sName) =UPPER('')),sMainTemplate='rx_PSC_TenantPricing.xlsx',
+    sContTemplate='',sLastTemplate='',sScriptFileName='rs_PSC_TenantPricingReport.txt',bUseScriptFile=0,sKeyCols='Property_Code',iMergeOrder=10,bInactive=0,bSharepointFile='0',sAttachSelect=''
+WHERE hMy=(SELECT ISNULL(Max(crst1.hMy),0) 
+          FROM CustomCorrespMerging crm1 
+          INNER JOIN CustomCorrespSetup crst1 ON crst1.hCustomCorrespMerging=crm1.HMY  
+          LEFT OUTER JOIN CustomCorrespStANDardList crsl1 ON crsl1.HMY=crst1.hCustomCorrespStANDardList 
+          WHERE UPPER(crm1.Scode)=UPPER('SM_TenantPricing')
+          AND UPPER(crst1.Scode)=UPPER('rpt') )
+;
+INSERT INTO CustomCorrespSetup(sCode,sName,hCustomCorrespMerging,hCustomCorrespStANDardList,sMainTemplate,sContTemplate,sLastTemplate,sScriptFileName,bUseScriptFile,sKeyCols,iMergeOrder,bInactive,bSharepointFile,sAttachSelect)
+SELECT 'rpt','',(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)= UPPER('SM_TenantPricing')),
+     (SELECT hmy FROM CustomCorrespStANDardList WHERE UPPER(sName) =UPPER('')),'rx_PSC_TenantPricing.xlsx',NULL,NULL,'rs_PSC_TenantPricingReport.txt',0,'Property_Code',10,0,0,''
+WHERE NOT EXISTS(SELECT 1 
+                 FROM CustomCorrespSetup 
+                 WHERE UPPER(sCode)=UPPER('rpt')
+                 AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')))
+;
+
+/* Delete existing Section Relations for rpt */ 
+ DELETE from CustomCorrespSectionRelations where hCustomCorrespSetup = ( 
+ SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode) = UPPER('rpt') AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))) 
+
+/* Insert or UPDATE Report Sections for rpt */ 
+UPDATE CustomCorrespSections 
+SET hCustomCorrespSetup =(SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode) = UPPER('rpt') AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))),bMultiRow=0,bPrimary=1,
+    hCustomCorrespStANDardList=(SELECT hmy FROM CustomCorrespStANDardList WHERE UPPER(sName) =UPPER('')),bInactive=0,sCode='header',sName='Header',sDataSource='header',sKeyCols='Property_Code',sGroupingCols='',sSummaryCols='',sOrderbyCols='',sSubTotalCols=''
+WHERE hMy=(SELECT ISNULL(Max(crsc1.hMy),0) 
+ FROM CustomCorrespSetup crst1 
+ INNER JOIN CustomCorrespSections crsc1 ON crsc1.hCustomCorrespSetup=crst1.HMY 
+ WHERE UPPER(crst1.Scode)=UPPER('rpt')
+ AND UPPER(crsc1.Scode)=UPPER('header') 
+ AND crst1.hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))) 
+;
+INSERT INTO CustomCorrespSections(hCustomCorrespSetup,bMultiRow,bPrimary,bInactive,sCode,sName,sDataSource,sKeyCols,sGroupingCols,sSummaryCols,sSubTotalCols,hCustomCorrespStANDardList,sOrderbyCols)
+SELECT (SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode) = UPPER('rpt') AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))),0,1,0,'header','Header','header','Property_Code','','','',
+     (SELECT hmy FROM CustomCorrespStANDardList WHERE UPPER(sName) =UPPER('')),''
+WHERE NOT EXISTS( 
+         SELECT 1 
+         FROM CustomCorrespSections
+         WHERE UPPER(Scode)=UPPER('header')
+         AND hCustomCorrespSetup = (SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode)=UPPER('rpt')
+         AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))))
+;
+UPDATE CustomCorrespSections 
+SET hCustomCorrespSetup =(SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode) = UPPER('rpt') AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))),bMultiRow=1,bPrimary=0,
+    hCustomCorrespStANDardList=(SELECT hmy FROM CustomCorrespStANDardList WHERE UPPER(sName) =UPPER('')),bInactive=0,sCode='display',sName='Main',sDataSource='display',sKeyCols='Property_Code',sGroupingCols='',sSummaryCols='',sOrderbyCols='',sSubTotalCols=''
+WHERE hMy=(SELECT ISNULL(Max(crsc1.hMy),0) 
+ FROM CustomCorrespSetup crst1 
+ INNER JOIN CustomCorrespSections crsc1 ON crsc1.hCustomCorrespSetup=crst1.HMY 
+ WHERE UPPER(crst1.Scode)=UPPER('rpt')
+ AND UPPER(crsc1.Scode)=UPPER('display') 
+ AND crst1.hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))) 
+;
+INSERT INTO CustomCorrespSections(hCustomCorrespSetup,bMultiRow,bPrimary,bInactive,sCode,sName,sDataSource,sKeyCols,sGroupingCols,sSummaryCols,sSubTotalCols,hCustomCorrespStANDardList,sOrderbyCols)
+SELECT (SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode) = UPPER('rpt') AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))),1,0,0,'display','Main','display','Property_Code','','','',
+     (SELECT hmy FROM CustomCorrespStANDardList WHERE UPPER(sName) =UPPER('')),''
+WHERE NOT EXISTS( 
+         SELECT 1 
+         FROM CustomCorrespSections
+         WHERE UPPER(Scode)=UPPER('display')
+         AND hCustomCorrespSetup = (SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode)=UPPER('rpt')
+         AND hCustomCorrespMerging=(SELECT Hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing'))))
+;
+/* Insert or UPDATE Filter Mappings for rpt */ 
+UPDATE CustomCorrespFilterMapping 
+SET hCustomCorrespMerging =(SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')),
+    hCustomCorrespSetup =(SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode)=UPPER('rpt') AND hCustomCorrespMerging = (SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode) = UPPER('SM_TenantPricing'))),
+    hCustomCorrespFilters=(SELECT hmy FROM CustomCorrespFilters WHERE UPPER(sFieldName)=UPPER('phmy') AND hCustomCorrespMerging =(SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode) = UPPER('SM_TenantPricing'))),
+    sFilterName='p.hmy in (#phmy#)',
+    hCustomCorrespSections=0,
+    sConstantFilterValue ='',
+    sFilterpart =''
+WHERE hMy=(SELECT ISNULL(Max(crfm.hMy),0) 
+          FROM CustomCorrespMerging crm 
+          INNER JOIN CustomCorrespFilterMapping crfm On crfm.hCustomCorrespMerging=crm.hMy 
+          INNER JOIN CustomCorrespSetup crs On crs.hMy=crfm.hCustomCorrespSetup 
+          LEFT Outer JOIN CustomCorrespFilters crf On crf.hMY=crfm.hCustomCorrespFilters 
+          LEFT Outer JOIN CustomCorrespSections crfs on crfs.hmy = crfm.hCustomCorrespSections 
+          WHERE 1=1 
+          AND UPPER(crm.sCode)=UPPER('SM_TenantPricing')
+	         AND UPPER(crs.sCode)=UPPER('rpt')
+          AND ISNULL(crfm.hCustomCorrespSections,0)=0 
+          AND UPPER(crf.sFieldName)=UPPER('phmy')
+          AND ISNULL(crfm.hCustomCorrespFilters,0)<> 0 
+)
+;
+INSERT INTO CustomCorrespFilterMapping(hCustomCorrespSetup,hCustomCorrespMerging,hCustomCorrespFilters,sFilterName,hCustomCorrespSections,sConstantFilterValue,sFilterpart)
+SELECT 
+         (SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode)=UPPER('rpt') AND hCustomCorrespMerging = (SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode) = UPPER('SM_TenantPricing'))),
+         (SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode)=UPPER('SM_TenantPricing')),
+         (SELECT hmy FROM CustomCorrespFilters WHERE UPPER(sFieldName)=UPPER('phmy') AND CustomCorrespFilters.hCustomCorrespMerging=(SELECT hmy	FROM CustomCorrespMerging WHERE UPPER(Scode) = UPPER('SM_TenantPricing'))),'p.hmy in (#phmy#)',
+         (SELECT hmy FROM CustomCorrespSections WHERE UPPER(sCode)=UPPER('') AND hCustomCorrespSetup =(SELECT hmy FROM CustomCorrespSetup WHERE UPPER(Scode)=UPPER('rpt') AND hCustomCorrespMerging = (SELECT hmy FROM CustomCorrespMerging WHERE UPPER(Scode) = UPPER('SM_TenantPricing')))),
+         ''
+        , '' 
+WHERE NOT EXISTS( SELECT 1 
+         FROM CustomCorrespMerging crm 
+         INNER JOIN CustomCorrespFilterMapping crfm On crfm.hCustomCorrespMerging=crm.hMy 
+         INNER JOIN CustomCorrespSetup crs On crs.hMy=crfm.hCustomCorrespSetup 
+         LEFT Outer JOIN CustomCorrespFilters crf On crf.hMy = crfm.hCustomCorrespFilters 
+         LEFT Outer JOIN CustomCorrespSections crsc On crsc.hMy = crfm.hCustomCorrespSections 
+         WHERE UPPER(crm.sCode)=UPPER('SM_TenantPricing')
+	       AND UPPER(crs.sCode)=UPPER('rpt')
+	       AND ISNULL(crfm.hCustomCorrespSections,0)=0 
+          AND UPPER(crf.sFieldName)=UPPER('phmy')
+	       AND ISNULL(crfm.hCustomCorrespFilters,0)<> 0 
+)
+;
+ /* Delete existing sharepoint setup for SM_TenantPricing */
+ DELETE FROM ParamOpt2 WHERE sType = 'SPPUBLISHING_SM_TenantPricing_SOURCE' 
+;
+//End SQL

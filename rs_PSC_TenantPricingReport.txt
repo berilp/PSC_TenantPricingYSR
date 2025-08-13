@@ -69,7 +69,7 @@ select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_C
     FROM
       unit_Status us1
     WHERE
-      convert(date, us1.dtstart, 101) >= convert(datetime, N'08/12/2025', 101)
+      convert(date, us1.dtstart, 101) >= convert(datetime, getdate(), 101)
     GROUP BY
       us1.hunit
   ) maxus on maxus.hunit = u.hmy
@@ -86,7 +86,7 @@ select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_C
       INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
       LEFT OUTER JOIN param pm On pm.hChart = 0
     WHERE
-      convert(date, c1.dtfrom, 101) >= convert(datetime, N'08/12/2025', 101)
+      convert(date, c1.dtfrom, 101) >= convert(datetime, getdate(), 101)
       and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
     GROUP BY
       c1.hunit,
@@ -101,7 +101,7 @@ select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_C
   AND mem.IFILETYPE = 1
   and mem.ifield = 1
 where
-  ux.dtLeaseFrom >= convert(datetime, N'08/12/2025', 101)
+  ux.dtLeaseFrom >= convert(datetime, getdate(), 101)
   AND p.hMy in (3)
   AND p.itype = 3
 
@@ -112,7 +112,7 @@ where
 Select
   p.scode as Property_Code,
   p.saddr1 as PropertyName,
-  p.hmy as phmy
+  p.hmy as phmy,
   u.HMY UnitID,
   t.HMYPERSON TenantID,
   ut.sdesc as UnitType,
@@ -243,7 +243,7 @@ LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit 
          AND prevcam.hTenant = t.hMyPerson
 LEFT OUTER JOIN camrule cprev ON cprev.hMy = prevcam.hMy
 
- --LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
+ /*LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy */
   inner join tenstatus ts on (t.istatus = ts.istatus)
   left outer join memo mem on t.HMYPERSON = mem.HFILERCD
   AND mem.IFILETYPE = 1
@@ -259,20 +259,24 @@ LEFT OUTER JOIN camrule cprev ON cprev.hMy = prevcam.hMy
   join chargtyp ct on ls.hchargecode = ct.hmy
   inner join property p on p.hmy = ls.hproperty
   where 1=1
- and p.hmy in (3)
+/*and p.hmy in (3)*/
+
+ #conditions#
 
 ) discounts 
 on discounts.PropertyId = p.hmy
 and discounts.UnitTypeId = ut.hmy
-	--and p.hmy in (3)
+	/*and p.hmy in (3)*/
    
 where
   ux.dtLeaseFrom >= convert(datetime, N'08/12/2025', 101)
-  AND p.hMy in (3)
   AND p.itype = 3
+/*and p.hmy in (3)*/
+  #conditions#
 Group by
   p.scode,
   p.saddr1,
+  p.hmy,
   u.hmy,
   t.hmyperson,
   u.scode,
