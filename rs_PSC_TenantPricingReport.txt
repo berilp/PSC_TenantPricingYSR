@@ -1,10 +1,13 @@
 //notes 
+  Script Name : rs_PSC_TenantPricingReport.txt
+  Client Name : Public Storage
+  Created On  : 2025-08-12
+  Created By  : Beril Pehlivan
+  Description : YSR - Tenant Pricing
+  Modified On : 
 New report from Carlyn for Tenant pricing Updates
 
-//end notes 
-
-
-//select display 
+old query for custom table 
 
 SELECT
   t.hMyPerson TenantId,
@@ -39,13 +42,61 @@ GROUP BY
   t.hMyPerson,
   case when isnull(tc.hUnit, 0) = 0 then t.hUnit else tc.hUnit end
   
---query starts here 
+//end notes 
+
+
+//select display 
+
+IF OBJECT_ID('tempdb..#tempDeposits') IS NOT NULL
+    DROP TABLE #tempDeposits;
+
+SELECT
+    p.scode as Property_Code,
+	p.saddr1 as PropertyName,
+	p.hmy phmy,
+	t.sfirstname + ' ' + t.slastname AS Tenant,
+    t.hMyPerson TenantId,
+    CASE WHEN ISNULL(tc.hUnit, 0) = 0 THEN t.hUnit ELSE tc.hUnit END hUnit,
+    SUM(
+        CASE WHEN d.hAcct = 496
+             AND tc.hRetentionAcct = 15 THEN d.sAmount ELSE 0 END
+    ) Deposit0,
+    0 Deposit1,
+    0 Deposit2,
+    0 Deposit3,
+    0 Deposit4,
+    0 Deposit5,
+    0 Deposit6,
+    0 Deposit7,
+    0 Deposit8,
+    0 Deposit9
+INTO #tempDeposits
+FROM Trans tr
+INNER JOIN tenant t ON t.hMyPerson = tr.hPerson
+INNER JOIN Detail d ON d.hInvorrec = tr.hMy
+INNER JOIN Trans tc ON d.hChkOrChg = tc.hMy
+INNER JOIN Property P on p.hmy = t.hproperty
+WHERE t.hProperty IN (3)
+  AND tr.iType = 6
+  AND tc.iType = 7
+  AND d.SAMOUNT > 0
+  AND d.hAcct IN (496)
+  AND tc.hRetentionAcct IN (15)
+  AND tr.uPostDate <= CONVERT(datetime, N'08/01/2025', 101)
+GROUP BY p.scode, p.saddr1, p.hmy, t.hMyPerson, t.sfirstname, t.slastname,
+         CASE WHEN ISNULL(tc.hUnit, 0) = 0 THEN t.hUnit ELSE tc.hUnit END;
+
+
+
+
 
 Select
   p.Scode pscode,
   p.saddr1 pname,
   u.HMY UnitID,
   t.HMYPERSON TenantID,
+  ut.sdesc as UnitType,
+  u.srent as UnitRent,
   u.sCode uscode,
   t.sCode tscode,
   p.SCODE + RIGHT(
@@ -61,54 +112,62 @@ Select
   AND Isnull(ux.bActive, 0) = 0 then N'Past' when isnull(ux.bActive, 0) = -1
   AND ux.dtNotice is null
   AND t.iStatus NOT IN(2, 6) then N'Current' when isnull(ux.bActive, 0) = -1
-  AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then N'Auction' else N'Notice' end else ts.status end status,
+  AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then N'Auction' else N'Notice' end else ts.status end as status,
   ux.dtleasefrom leasefrom,
   ux.dtLeaseTo leaseto,
-  ux.dtMoveIn movein,
+  ux.dtMoveIn as MoveIn,
   ux.dtNotice noticedt,
-  ux.dtMoveOut moveout,
+  ux.dtMoveOut as MoveOut,
   mem.STEXT notes,
-  Case When substring(t.sPhoneNum0, 4, 1) = N'-'
-  or substring(t.sPhoneNum0, 1, 1) = N'(' Then t.sPhoneNum0 When len(rtrim(t.sPhoneNum0)) > 7
-  and len(rtrim(t.sPhoneNum0)) < 11 Then N'(' + substring(t.sPhoneNum0, 1, 3) + N')' + substring(t.sPhoneNum0, 4, 3) + N'-' + substring(t.sPhoneNum0, 7, 7) When len(rtrim(t.sPhoneNum0)) > 10 Then N'(' + substring(t.sPhoneNum0, 1, 3) + N')' + substring(t.sPhoneNum0, 4, 3) + N'-' + substring(t.sPhoneNum0, 7, 4) + N' x' + substring (t.sphonenum0, 11, 5) When len(t.sPhoneNum0) > 3 Then substring(t.sPhoneNum0, 1, 3) + N'-' + substring(t.sPhoneNum0, 4, 5) Else t.sPhoneNum0 End offphone,
-  Case When substring(t.sPhoneNum1, 4, 1) = N'-'
-  or substring(t.sPhoneNum1, 1, 1) = N'(' Then t.sPhoneNum1 When len(rtrim(t.sPhoneNum1)) > 7
-  and len(rtrim(t.sPhoneNum1)) < 11 Then N'(' + substring(t.sPhoneNum1, 1, 3) + N')' + substring(t.sPhoneNum1, 4, 3) + N'-' + substring(t.sPhoneNum1, 7, 7) When len(rtrim(t.sPhoneNum1)) > 10 Then N'(' + substring(t.sPhoneNum1, 1, 3) + N')' + substring(t.sPhoneNum1, 4, 3) + N'-' + substring(t.sPhoneNum1, 7, 4) + N' x' + substring (t.sPhoneNum1, 11, 5) When len(t.sPhoneNum1) > 3 Then substring(t.sPhoneNum1, 1, 3) + N'-' + substring(t.sPhoneNum1, 4, 5) Else t.sPhoneNum1 End homephone,
-  Case When substring(t.sphonenum3, 4, 1) = N'-'
-  or substring(t.sphonenum3, 1, 1) = N'(' Then t.sphonenum3 When len(rtrim(t.sphonenum3)) > 7
-  and len(rtrim(t.sphonenum3)) < 11 Then N'(' + substring(t.sphonenum3, 1, 3) + N')' + substring(t.sphonenum3, 4, 3) + N'-' + substring(t.sphonenum3, 7, 7) When len(rtrim(t.sphonenum3)) > 10 Then N'(' + substring(t.sphonenum3, 1, 3) + N')' + substring(t.sphonenum3, 4, 3) + N'-' + substring(t.sphonenum3, 7, 4) + N' x' + substring (t.sphonenum3, 11, 5) When len(t.sphonenum3) > 3 Then substring(t.sphonenum3, 1, 3) + N'-' + substring(t.sphonenum3, 4, 5) Else t.sphonenum3 End mobile,
-  t.semail email,
-  N'Tel Num(' + (
-    select
-      [text]
-    from
-      label
-    where
-      type = N'PMLABEL'
-      and subtype = N'PHONE LABEL'
-      and element = 0
-  ) + N')' PhoneHeader0,
-  N'Tel Num(' + (
-    select
-      [text]
-    from
-      label
-    where
-      type = N'PMLABEL'
-      and subtype = N'PHONE LABEL'
-      and element = 1
-  ) + N')' PhoneHeader1,
+t.semail email,
   case when ux.dtMoveOut is not null
   AND Isnull(ux.bActive, 0) = 0 then 1 when isnull(ux.bActive, 0) = -1
   AND ux.dtNotice is null
   AND t.iStatus NOT IN(2, 6) then 0 when isnull(ux.bActive, 0) = -1
   AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then 3 else 4 end else ts.istatus end TenantStatus,
-  t.hProspect ProspectId
+  t.hProspect ProspectId,
+  ISNULL(c.DESTIMATED, 0) AS CurrentPrice,
+c.dtFrom                AS LastPriceChangeDate,
+ISNULL(cprev.DESTIMATED, 0) AS LastPrice,
+
+   CASE WHEN upper(us.sStatus) = N'NOTICE RENTED' then Case WHEN t.scode IS NULL THEN 0
+                                                           ELSE sum(CASE c.iestimatetype 
+                                                                      WHEN 0 THEN ((c.DESTIMATED * t.srent)/100) 
+                                                                      WHEN 1 THEN case when isnull(p.iTypeCommercial,0) = 0 then (c.DESTIMATED * t.dleasegrosssqft) else c.dMonthlyAmount end 
+                                                                      WHEN 2 THEN (c.DESTIMATED) 
+                                                                      ELSE 0
+                                                                    END) 
+                                                      End
+        ELSE 0
+    END TenantRent
+
+
 from
   property p
+
+/*
+
+INNER JOIN unit u ON p.hmy = u.hproperty 
+INNER JOIN (SELECT max(us1.hmy) hmy, us1.hunit hunit FROM unit_Status us1 
+          WHERE convert(char,us1.dtstart,106) <= convert(datetime, N'08/13/2025', 101) and ((us1.dtend is null) or (us1.dtend >= convert(datetime, N'08/13/2025', 101))) 
+            GROUP BY us1.hunit) maxus on maxus.hunit = u.hmy 
+INNER JOIN unit_status us on us.hmy = maxus.hmy AND us.hunit = maxus.hunit 
+LEFT JOIN ( SELECT MAX(us1.hmy) MaxUS, hUnit             FROM Unit_Status us1             WHERE us1.dtEnd <= convert(datetime, N'08/13/2025', 101) 
+            AND us1.sStatus = N'Notice Unrented'             GROUP BY hunit ) NoticeUnRented ON NoticeUnRented.hUnit = u.hmy AND us.sStatus = N'Notice Rented'LEFT JOIN  Unit_Status us2 ON NoticeUnRented.MaxUS = us2.hMy 
+LEFT JOIN Tenant t ON t.hMyPerson = us2.hTent
+LEFT OUTER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson AND ux.hUnit = u.hMy
+LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit = u.hMy
+ LEFT JOIN camrule c ON t.hMyPerson = c.hTenant AND u.hMy = case when isnull(c.hUnit, 0) = 0 then t.hUnit else c.hUnit end
+   AND c.hchargecode in (SELECT hRentChgCode FROM param) 
+
+   */
+
+
+
   inner join tenant t on t.hProperty = p.hMy
   INNER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson
   inner join unit u on u.hMy = ux.hUnit
+  inner join unittype ut on ut.hmy = u.hunittype
   INNER JOIN (
     SELECT
       max(us1.hmy) hmy,
@@ -141,7 +200,29 @@ from
   ) maxcam on maxcam.hunit = u.hmy
   and maxcam.hTenant = t.hMyPerson
   left outer join camrule c ON c.hMy = maxcam.hMy
-  LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
+  
+  /*added part*/
+  LEFT OUTER JOIN (
+    SELECT MAX(c2.hmy) hmy, c2.hunit, c2.hTenant
+    FROM camrule c2
+    INNER JOIN unit u2       ON u2.hMy = c2.hUnit
+    INNER JOIN g2UnitType ut2 ON ut2.hUnitType = u2.HUNITTYPE
+    LEFT  OUTER JOIN param pm2 ON pm2.hChart = 0
+    WHERE c2.dtFrom <= CONVERT(datetime, N'08/12/2025', 101)
+      AND c2.hChargeCode IN (pm2.hRentChgCode, ut2.hRentChargeCode)
+      AND c2.hmy <
+          (SELECT MAX(c3.hmy)
+           FROM camrule c3
+           WHERE c3.hUnit = c2.hUnit
+             AND c3.hTenant = c2.hTenant
+             AND c3.hChargeCode IN (pm2.hRentChgCode, ut2.hRentChargeCode)
+             AND c3.dtFrom <= CONVERT(datetime, N'08/12/2025', 101))
+    GROUP BY c2.hunit, c2.hTenant
+) prevcam ON prevcam.hunit = u.hmy
+         AND prevcam.hTenant = t.hMyPerson
+LEFT OUTER JOIN camrule cprev ON cprev.hMy = prevcam.hMy
+
+ LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
   inner join tenstatus ts on (t.istatus = ts.istatus)
   left outer join memo mem on t.HMYPERSON = mem.HFILERCD
   AND mem.IFILETYPE = 1
@@ -156,6 +237,8 @@ Group by
   u.hmy,
   t.hmyperson,
   u.scode,
+  u.sRent,
+  ut.sdesc,
   t.scode,
   p.scode,
   t.slastname,
@@ -171,14 +254,14 @@ Group by
   ux.dtNotice,
   ux.bActive,
   mem.stext,
-  t.sphonenum0,
-  t.sphonenum1,
-  t.sphonenum3,
   t.semail,
   t.istatus,
   t.hprospect,
   ts.iStatus,
-  ux.iNoticeType
+  ux.iNoticeType,
+  c.dtfrom,
+  c.destimated,
+  cprev.destimated
 Order By
   putcode1,
   ux.dtLeaseFrom
