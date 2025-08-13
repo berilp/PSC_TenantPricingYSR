@@ -7,48 +7,7 @@
   Modified On : 
 New report from Carlyn for Tenant pricing Updates
 
-old query for custom table 
-
-SELECT
-  t.hMyPerson TenantId,
-  case when isnull(tc.hUnit, 0) = 0 then t.hUnit else tc.hUnit end hUnit,
-  sum(
-    case when d.hAcct = 496
-    and tc.hRetentionAcct = 15 then d.sAmount else 0 end
-  ) Deposit0,
-  0 Deposit1,
-  0 Deposit2,
-  0 Deposit3,
-  0 Deposit4,
-  0 Deposit5,
-  0 Deposit6,
-  0 Deposit7,
-  0 Deposit8,
-  0 Deposit9 INTO #tempDeposits
-FROM
-  Trans tr
-  INNER JOIN tenant t ON t.hMyPerson = tr.hPerson
-  INNER Join Detail d ON (d.hInvorrec = tr.hMy)
-  INNER Join Trans tc ON (d.hChkOrChg = tc.hMy)
-WHERE
-  t.hProperty IN (3)
-  AND tr.iType = 6
-  AND tc.iType = 7
-  AND d.SAMOUNT > 0
-  AND d.hAcct IN (496)
-  AND tc.hRetentionAcct IN (15)
-  AND tr.uPostDate <= convert(datetime, N'08/01/2025', 101)
-GROUP BY
-  t.hMyPerson,
-  case when isnull(tc.hUnit, 0) = 0 then t.hUnit else tc.hUnit end
-  
-//end notes 
-
-
-//select display 
-
-
-
+client doesnt use deposits 
 IF OBJECT_ID('tempdb..#tempDeposits') IS NOT NULL
     DROP TABLE #tempDeposits;
 
@@ -88,13 +47,72 @@ WHERE t.hProperty IN (3)
 GROUP BY p.scode, p.saddr1, p.hmy, t.hMyPerson, t.sfirstname, t.slastname,
          CASE WHEN ISNULL(tc.hUnit, 0) = 0 THEN t.hUnit ELSE tc.hUnit END;
 
+//end notes 
+
+//select header 
+select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_Code,
+  DATENAME(WEEKDAY, getdate()) + ', ' +
+  DATENAME(MONTH, getdate()) + ' ' +
+  CAST(DAY(getdate()) AS VARCHAR) + ', ' +
+  CAST(YEAR(getdate()) AS VARCHAR) 
+  AS ReportDateRange,
+	   '#@@outputtype#' OutputType
+	from property p    
+  inner join tenant t on t.hProperty = p.hMy
+  INNER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson
+  inner join unit u on u.hMy = ux.hUnit
+  inner join unittype ut on ut.hmy = u.hunittype
+  INNER JOIN (
+    SELECT
+      max(us1.hmy) hmy,
+      us1.hunit hunit
+    FROM
+      unit_Status us1
+    WHERE
+      convert(date, us1.dtstart, 101) >= convert(datetime, N'08/12/2025', 101)
+    GROUP BY
+      us1.hunit
+  ) maxus on maxus.hunit = u.hmy
+  INNER JOIN unit_status us on us.hmy = maxus.hmy
+  AND us.hunit = maxus.hunit
+  LEFT OUTER JOIN (
+    SELECT
+      max(c1.hmy) hmy,
+      c1.hunit,
+      c1.hTenant
+    FROM
+      camrule c1
+      INNER JOIN unit u1 On u1.hMy = c1.hUnit
+      INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
+      LEFT OUTER JOIN param pm On pm.hChart = 0
+    WHERE
+      convert(date, c1.dtfrom, 101) >= convert(datetime, N'08/12/2025', 101)
+      and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
+    GROUP BY
+      c1.hunit,
+      c1.hTenant
+  ) maxcam on maxcam.hunit = u.hmy
+  and maxcam.hTenant = t.hMyPerson
+  left outer join camrule c ON c.hMy = maxcam.hMy
+
+ --LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
+  inner join tenstatus ts on (t.istatus = ts.istatus)
+  left outer join memo mem on t.HMYPERSON = mem.HFILERCD
+  AND mem.IFILETYPE = 1
+  and mem.ifield = 1
+where
+  ux.dtLeaseFrom >= convert(datetime, N'08/12/2025', 101)
+  AND p.hMy in (3)
+  AND p.itype = 3
+
+//end select 
 
 
-
-
+//select display 
 Select
-  p.Scode pscode,
-  p.saddr1 pname,
+  p.scode as Property_Code,
+  p.saddr1 as PropertyName,
+  p.hmy as phmy
   u.HMY UnitID,
   t.HMYPERSON TenantID,
   ut.sdesc as UnitType,
@@ -109,7 +127,6 @@ Select
   ) + t.SCODE as putcode1,
   Case When t.sLastname is NULL Then N'VACANT' else t.sfirstname + N' ' + t.slastname End resident,
   Case upper(us.sStatus) when N'VACANT UNRENTED READY' THEN 0 When N'VACANT UNRENTED NOT READY' THEN 0 When N'MODEL' Then 0 When N'DOWN' Then 0 When N'ADMIN' Then 0 ELSE isnull(c.DESTIMATED, 0) END rent,
-  isnull(dep.Deposit0, 0) deposit,
   case when ux.dtMoveOut is not null
   AND Isnull(ux.bActive, 0) = 0 then N'Past' when isnull(ux.bActive, 0) = -1
   AND ux.dtNotice is null
@@ -117,9 +134,9 @@ Select
   AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then N'Auction' else N'Notice' end else ts.status end as status,
   ux.dtleasefrom leasefrom,
   ux.dtLeaseTo leaseto,
-  ux.dtMoveIn as MoveIn,
+  cast(ux.dtMoveIn as Date) as MoveIn,
   ux.dtNotice noticedt,
-  ux.dtMoveOut as MoveOut,
+  cast(ux.dtMoveOut as Date) as MoveOut,
   mem.STEXT notes,
 t.semail email,
   case when ux.dtMoveOut is not null
@@ -226,7 +243,7 @@ LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit 
          AND prevcam.hTenant = t.hMyPerson
 LEFT OUTER JOIN camrule cprev ON cprev.hMy = prevcam.hMy
 
- LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
+ --LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy
   inner join tenstatus ts on (t.istatus = ts.istatus)
   left outer join memo mem on t.HMYPERSON = mem.HFILERCD
   AND mem.IFILETYPE = 1
@@ -267,7 +284,6 @@ Group by
   t.sfirstname,
   isnull(c.DESTIMATED, 0),
   us.sstatus,
-  isnull(dep.Deposit0, 0),
   ts.status,
   ux.dtleasefrom,
   ux.dtleaseto,
@@ -289,6 +305,6 @@ Order By
   putcode1,
   ux.dtLeaseFrom
 
-  
+
 
 //end select 
