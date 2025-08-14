@@ -195,7 +195,7 @@ LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit 
     FROM
       unit_Status us1
     WHERE
-      convert(date, us1.dtstart, 101) >= convert(datetime, N'08/12/2025', 101)
+      convert(date, us1.dtstart, 101) >= convert(datetime, N'#AsOfDate#', 101)
     GROUP BY
       us1.hunit
   ) maxus on maxus.hunit = u.hmy
@@ -212,7 +212,7 @@ LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit 
       INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
       LEFT OUTER JOIN param pm On pm.hChart = 0
     WHERE
-      convert(date, c1.dtfrom, 101) >= convert(datetime, N'08/12/2025', 101)
+      convert(date, c1.dtfrom, 101) >= convert(datetime, N'#AsOfDate#', 101)
       and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
     GROUP BY
       c1.hunit,
@@ -228,7 +228,7 @@ LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit 
     INNER JOIN unit u2       ON u2.hMy = c2.hUnit
     INNER JOIN g2UnitType ut2 ON ut2.hUnitType = u2.HUNITTYPE
     LEFT  OUTER JOIN param pm2 ON pm2.hChart = 0
-    WHERE c2.dtFrom <= CONVERT(datetime, N'08/12/2025', 101)
+    WHERE c2.dtFrom <= CONVERT(datetime, N'#AsOfDate#', 101)
       AND c2.hChargeCode IN (pm2.hRentChgCode, ut2.hRentChargeCode)
       AND c2.hmy <
           (SELECT MAX(c3.hmy)
@@ -236,7 +236,7 @@ LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit 
            WHERE c3.hUnit = c2.hUnit
              AND c3.hTenant = c2.hTenant
              AND c3.hChargeCode IN (pm2.hRentChgCode, ut2.hRentChargeCode)
-             AND c3.dtFrom <= CONVERT(datetime, N'08/12/2025', 101))
+             AND c3.dtFrom <= CONVERT(datetime, N'#AsOfDate#', 101))
     GROUP BY c2.hunit, c2.hTenant
 ) prevcam ON prevcam.hunit = u.hmy
          AND prevcam.hTenant = t.hMyPerson
@@ -268,9 +268,10 @@ and discounts.UnitTypeId = ut.hmy
 	/*and p.hmy in (3)*/
    
 where
-  ux.dtLeaseFrom >= convert(datetime, N'08/12/2025', 101)
+  ux.dtLeaseFrom >= convert(datetime, N'01/01/2025', 101)
   AND p.itype = 3
-/*and p.hmy in (3)*/
+  AND ts.istatus not in (1,7) /*exclude canceled and past */
+  /*and p.hmy in (3)*/
   #conditions#
 Group by
   p.scode,
@@ -305,8 +306,10 @@ Group by
   cprev.destimated,
   discounts.Description
 Order By
-  putcode1,
+  /*putcode1,*/
+  ts.istatus,
   ux.dtLeaseFrom
+  
 
 
 
