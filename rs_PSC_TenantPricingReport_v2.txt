@@ -17,6 +17,7 @@ SELECT
 	p.hmy phmy,
 	t.sfirstname + ' ' + t.slastname AS Tenant,
     t.hMyPerson TenantId,
+    tr.snotes as TransNote,
     CASE WHEN ISNULL(tc.hUnit, 0) = 0 THEN t.hUnit ELSE tc.hUnit END hUnit,
     SUM(
         CASE WHEN d.hAcct = 496
@@ -44,8 +45,11 @@ WHERE t.hProperty IN (3)
   AND d.hAcct IN (496)
   AND tc.hRetentionAcct IN (15)
   AND tr.uPostDate <= CONVERT(datetime, N'08/01/2025', 101)
-GROUP BY p.scode, p.saddr1, p.hmy, t.hMyPerson, t.sfirstname, t.slastname,
+GROUP BY p.scode, p.saddr1, p.hmy, t.hMyPerson, t.sfirstname, t.slastname, tr.snotes,
          CASE WHEN ISNULL(tc.hUnit, 0) = 0 THEN t.hUnit ELSE tc.hUnit END;
+
+
+
 
 //end notes 
 
@@ -108,7 +112,14 @@ where
 
 
 //select display 
-Select
+Select 
+  STUFF((
+      SELECT ', ' + ISNULL(ls.sDesc, '')
+      FROM LeasingSpecials ls
+      WHERE ls.hUnitType = ut.hmy
+        AND ls.hProperty = p.hmy
+      FOR XML PATH(''), TYPE
+  ).value('.', 'nvarchar(max)'), 1, 2, '') AS Discount_Desc,
   p.scode as Property_Code,
   p.saddr1 as PropertyName,
   p.hmy as phmy,
@@ -157,11 +168,7 @@ ISNULL(cprev.DESTIMATED, 0) AS LastPrice,
                                                                     END) 
                                                       End
         ELSE 0
-    END TenantRent,
-	case when discounts.Description is NULL then '' else discounts.Description  end as Discount_Desc,
-	   STRING_AGG(discounts.Description, ', ') AS Promotions
-
-
+    END TenantRent
 from
   property p
 
@@ -242,37 +249,16 @@ LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit 
          AND prevcam.hTenant = t.hMyPerson
 LEFT OUTER JOIN camrule cprev ON cprev.hMy = prevcam.hMy
 
- /*LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy */
+/*LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy */
   inner join tenstatus ts on (t.istatus = ts.istatus)
   left outer join memo mem on t.HMYPERSON = mem.HFILERCD
   AND mem.IFILETYPE = 1
   and mem.ifield = 1
   
-  left join (
-  select distinct
-    ls.hproperty as PropertyId,
-    ut.hmy as UnitTypeId,
-    ut.sdesc as UnitTypeDesc,
-    ls.sDesc as Description
-  from LeasingSpecials ls
-  join UNITTYPE ut on ls.hUnitType = ut.HMY
-  join chargtyp ct on ls.hchargecode = ct.hmy
-  inner join property p on p.hmy = ls.hproperty
-  where 1=1
-/*and p.hmy in (3)*/
-
- #conditions#
-
-) discounts 
-on discounts.PropertyId = p.hmy
-and discounts.UnitTypeId = ut.hmy
-
-   
 where
   ux.dtLeaseFrom >= convert(datetime, N'01/01/2025', 101)
   AND p.itype = 3
   AND ts.istatus not in (1,7) /*exclude canceled and past */
-
   #conditions#
 Group by
   p.scode,
@@ -305,8 +291,7 @@ Group by
   c.dtfrom,
   c.destimated,
   cprev.destimated,
-  ut.hmy,
-  discounts.Description
+  ut.hmy
 Order By
   /*putcode1,*/
   ts.istatus,
