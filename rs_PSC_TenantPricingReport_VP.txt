@@ -1,0 +1,357 @@
+//notes 
+  Script Name : rs_PSC_TenantPricingReport.txt
+  Client Name : Public Storage
+  Created On  : 2025-08-12
+  Created By  : Beril Pehlivan
+  Description : YSR - Tenant Pricing
+  Modified On : 
+New report from Carlyn for Tenant pricing Updates
+				26-Aug-2025 - Case#16914655 - Vishal Patil
+				Introduced logic to show only discount applied to tenant
+
+client doesnt use deposits 
+IF OBJECT_ID('tempdb..#tempDeposits') IS NOT NULL
+    DROP TABLE #tempDeposits;
+
+SELECT
+    p.scode as Property_Code,
+	p.saddr1 as PropertyName,
+	p.hmy phmy,
+	t.sfirstname + ' ' + t.slastname AS Tenant,
+    t.hMyPerson TenantId,
+    tr.snotes as TransNote,
+    CASE WHEN ISNULL(tc.hUnit, 0) = 0 THEN t.hUnit ELSE tc.hUnit END hUnit,
+    SUM(
+        CASE WHEN d.hAcct = 496
+             AND tc.hRetentionAcct = 15 THEN d.sAmount ELSE 0 END
+    ) Deposit0,
+    0 Deposit1,
+    0 Deposit2,
+    0 Deposit3,
+    0 Deposit4,
+    0 Deposit5,
+    0 Deposit6,
+    0 Deposit7,
+    0 Deposit8,
+    0 Deposit9
+INTO #tempDeposits
+FROM Trans tr
+INNER JOIN tenant t ON t.hMyPerson = tr.hPerson
+INNER JOIN Detail d ON d.hInvorrec = tr.hMy
+INNER JOIN Trans tc ON d.hChkOrChg = tc.hMy
+INNER JOIN Property P on p.hmy = t.hproperty
+WHERE t.hProperty IN (3)
+  AND tr.iType = 6
+  AND tc.iType = 7
+  AND d.SAMOUNT > 0
+  AND d.hAcct IN (496)
+  AND tc.hRetentionAcct IN (15)
+  AND tr.uPostDate <= CONVERT(datetime, N'08/01/2025', 101)
+GROUP BY p.scode, p.saddr1, p.hmy, t.hMyPerson, t.sfirstname, t.slastname, tr.snotes,
+         CASE WHEN ISNULL(tc.hUnit, 0) = 0 THEN t.hUnit ELSE tc.hUnit END;
+
+
+
+
+//end notes 
+
+//SELECT No Crystal
+DECLARE @phmy varchar(1000),
+		@AsofDate Datetime
+		
+SELECT @AsofDate = Case when isnull('#AsOfDate#','') = '' then '1900-01-01' else '#AsOfDate#' end
+
+DROP TABLE IF EXISTS TenantDiscount
+CREATE TABLE TenantDiscount (PropertyId numeric(18,0), 
+							 TenantId numeric(18,0),   
+							 ChargeCode varchar(20), 
+							 ChargeId numeric(18,0), 
+							 ChargeAmount numeric(18,2), 
+							 TaxAmt numeric(18,2), 							 
+							 sUserDefined2 varchar(512), 
+							 sNotes varchar(2000),
+							 UnitId numeric(18,0),
+							 lsDesc varchar(512)
+							 )
+
+INSERT  TenantDiscount 
+		(PropertyId, TenantId, ChargeCode, ChargeId, ChargeAmount, TaxAmt, sUserDefined2, sNotes, UnitId, lsDesc)
+
+SELECT	p.hmy 				PropertyId, 
+		t.hmyperson 		TenantId, 
+		c.sCode 			ChargeCode, 
+		c.hmy 				ChargeId,
+		tr.STOTALAMOUNT 	ChargeAmount,
+		tr.sVatAmount		TaxAmt,		
+		tr.sUserDefined2 	sUserDefined2, 
+		tr.sNotes 			sNotes,
+		ux.hUnit			UnitId,
+		ls.sdesc			lsDesc
+FROM 	UnitXRef ux 
+		LEFT JOIN tenant t on t.HMYPERSON = ux.hTenant and ux.bActive = -1
+		INNER JOIN unit u on u.hmy = ux.hUnit  
+		INNER JOIN property p on p.hmy = t.HPROPERTY 
+		INNER JOIN trans tr ON (t.hmyperson = tr.hPerson and tr.hunit = ux.hunit)		
+		INNER JOIN chargtyp c on (tr.hRetentionAcct = c.hMy)  
+		INNER JOIN tenstatus ts on ts.istatus = t.iStatus  
+		INNER JOIN specialsxref sx on t.hProspect = sx.hProspect
+		INNER JOIN LeasingSpecials ls on sx.hSpecial = ls.hmy and ls.hChargeCode = c.hmy
+WHERE 	1 = 1 
+		#CONDITION01#		
+		AND ISNULL(p.iTypeStorage,0) <> 0 
+		AND tr.sUserDefined2 = ':MoveIn'
+		AND t.istatus in (0,2,4)
+		AND ux.dtLeaseFrom >= @AsofDate
+		AND tr.sNotes not like '%Tax%'
+//END SELECT
+
+//select header 
+select distinct p.hmy phmy, isNull(p.saddr1,'') PropertyName, p.scode Property_Code,
+  DATENAME(WEEKDAY, '#AsOfDate#') + ', ' +
+  DATENAME(MONTH, '#AsOfDate#') + ' ' +
+  CAST(DAY('#AsOfDate#') AS VARCHAR) + ', ' +
+  CAST(YEAR('#AsOfDate#') AS VARCHAR) 
+  AS ReportDateRange,
+	   '#@@outputtype#' OutputType
+	from property p    
+  inner join tenant t on t.hProperty = p.hMy
+  INNER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson
+  inner join unit u on u.hMy = ux.hUnit
+  inner join unittype ut on ut.hmy = u.hunittype
+  INNER JOIN (
+    SELECT
+      max(us1.hmy) hmy,
+      us1.hunit hunit
+    FROM
+      unit_Status us1
+    WHERE
+      convert(date, us1.dtstart, 101) >= convert(datetime, '#AsOfDate#', 101)
+    GROUP BY
+      us1.hunit
+  ) maxus on maxus.hunit = u.hmy
+  INNER JOIN unit_status us on us.hmy = maxus.hmy
+  AND us.hunit = maxus.hunit
+  LEFT OUTER JOIN (
+    SELECT
+      max(c1.hmy) hmy,
+      c1.hunit,
+      c1.hTenant
+    FROM
+      camrule c1
+      INNER JOIN unit u1 On u1.hMy = c1.hUnit
+      INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
+      LEFT OUTER JOIN param pm On pm.hChart = 0
+    WHERE
+      convert(date, c1.dtfrom, 101) >= convert(datetime, '#AsOfDate#', 101)
+      and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
+    GROUP BY
+      c1.hunit,
+      c1.hTenant
+  ) maxcam on maxcam.hunit = u.hmy
+  and maxcam.hTenant = t.hMyPerson
+  left outer join camrule c ON c.hMy = maxcam.hMy
+
+ /*LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy*/
+  inner join tenstatus ts on (t.istatus = ts.istatus)
+  left outer join memo mem on t.HMYPERSON = mem.HFILERCD
+  AND mem.IFILETYPE = 1
+  and mem.ifield = 1
+where
+  ux.dtLeaseFrom >= convert(datetime, '#AsOfDate#', 101)
+  AND p.itype = 3
+#conditions#
+//end select 
+
+
+//select display 
+Select 
+  td.lsDesc
+  /*STUFF((
+      SELECT ', ' + ISNULL(ls.sDesc, '')
+      FROM LeasingSpecials ls
+      WHERE ls.hUnitType = ut.hmy
+        AND ls.hProperty = p.hmy
+      FOR XML PATH(''), TYPE
+  ).value('.', 'nvarchar(max)'), 1, 2, '') Changed logic against case#16914655*/ AS Discount_Desc,
+  p.scode as Property_Code,
+  p.saddr1 as PropertyName,
+  p.hmy as phmy,
+  u.HMY UnitID,
+  t.HMYPERSON TenantID,
+  ut.sdesc as UnitType,
+  u.srent as UnitRent,
+  u.sCode uscode,
+  t.sCode tscode,
+  p.SCODE + RIGHT(
+    RTRIM(
+      N'00000000' + ISNULL(cast(u.SCODE as varchar(8)), '')
+    ),
+    8
+  ) + t.SCODE as putcode1,
+  Case When t.sLastname is NULL Then N'VACANT' else t.sfirstname + N' ' + t.slastname End resident,
+  Case upper(us.sStatus) when N'VACANT UNRENTED READY' THEN 0 When N'VACANT UNRENTED NOT READY' THEN 0 When N'MODEL' Then 0 When N'DOWN' Then 0 When N'ADMIN' Then 0 ELSE isnull(c.DESTIMATED, 0) END rent,
+  case when ux.dtMoveOut is not null
+  AND Isnull(ux.bActive, 0) = 0 then N'Past' when isnull(ux.bActive, 0) = -1
+  AND ux.dtNotice is null
+  AND t.iStatus NOT IN(2, 6) then N'Current' when isnull(ux.bActive, 0) = -1
+  AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then N'Auction' else N'Notice' end else ts.status end as status,
+  ux.dtleasefrom leasefrom,
+  ux.dtLeaseTo leaseto,
+  cast(ux.dtMoveIn as Date) as MoveIn,
+  ux.dtNotice noticedt,
+  cast(ux.dtMoveOut as Date) as MoveOut,
+  mem.STEXT notes,
+t.semail email,
+  case when ux.dtMoveOut is not null
+  AND Isnull(ux.bActive, 0) = 0 then 1 when isnull(ux.bActive, 0) = -1
+  AND ux.dtNotice is null
+  AND t.iStatus NOT IN(2, 6) then 0 when isnull(ux.bActive, 0) = -1
+  AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then 3 else 4 end else ts.istatus end TenantStatus,
+  t.hProspect ProspectId,
+  ISNULL(c.DESTIMATED, 0) AS CurrentPrice,
+c.dtFrom                AS LastPriceChangeDate,
+ISNULL(cprev.DESTIMATED, 0) AS LastPrice,
+
+   CASE WHEN upper(us.sStatus) = N'NOTICE RENTED' then Case WHEN t.scode IS NULL THEN 0
+                                                           ELSE sum(CASE c.iestimatetype 
+                                                                      WHEN 0 THEN ((c.DESTIMATED * t.srent)/100) 
+                                                                      WHEN 1 THEN case when isnull(p.iTypeCommercial,0) = 0 then (c.DESTIMATED * t.dleasegrosssqft) else c.dMonthlyAmount end 
+                                                                      WHEN 2 THEN (c.DESTIMATED) 
+                                                                      ELSE 0
+                                                                    END) 
+                                                      End
+        ELSE 0
+    END TenantRent
+from
+  property p
+
+/*
+
+INNER JOIN unit u ON p.hmy = u.hproperty 
+INNER JOIN (SELECT max(us1.hmy) hmy, us1.hunit hunit FROM unit_Status us1 
+          WHERE convert(char,us1.dtstart,106) <= convert(datetime, N'08/13/2025', 101) and ((us1.dtend is null) or (us1.dtend >= convert(datetime, N'08/13/2025', 101))) 
+            GROUP BY us1.hunit) maxus on maxus.hunit = u.hmy 
+INNER JOIN unit_status us on us.hmy = maxus.hmy AND us.hunit = maxus.hunit 
+LEFT JOIN ( SELECT MAX(us1.hmy) MaxUS, hUnit             FROM Unit_Status us1             WHERE us1.dtEnd <= convert(datetime, N'08/13/2025', 101) 
+            AND us1.sStatus = N'Notice Unrented'             GROUP BY hunit ) NoticeUnRented ON NoticeUnRented.hUnit = u.hmy AND us.sStatus = N'Notice Rented'LEFT JOIN  Unit_Status us2 ON NoticeUnRented.MaxUS = us2.hMy 
+LEFT JOIN Tenant t ON t.hMyPerson = us2.hTent
+LEFT OUTER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson AND ux.hUnit = u.hMy
+LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson --AND dep.hUnit = u.hMy
+ LEFT JOIN camrule c ON t.hMyPerson = c.hTenant AND u.hMy = case when isnull(c.hUnit, 0) = 0 then t.hUnit else c.hUnit end
+   AND c.hchargecode in (SELECT hRentChgCode FROM param) 
+
+   */
+
+
+
+  inner join tenant t on t.hProperty = p.hMy
+  INNER JOIN unitxRef ux ON ux.hTenant = t.hMyPerson
+  LEFT JOIN TenantDiscount td on t.hmyperson = td.tenantId
+  inner join unit u on u.hMy = ux.hUnit
+  inner join unittype ut on ut.hmy = u.hunittype
+  INNER JOIN (
+    SELECT
+      max(us1.hmy) hmy,
+      us1.hunit hunit
+    FROM
+      unit_Status us1
+    WHERE
+      convert(date, us1.dtstart, 101) >= convert(datetime, N'#AsOfDate#', 101)
+    GROUP BY
+      us1.hunit
+  ) maxus on maxus.hunit = u.hmy
+  INNER JOIN unit_status us on us.hmy = maxus.hmy
+  AND us.hunit = maxus.hunit
+  LEFT OUTER JOIN (
+    SELECT
+      max(c1.hmy) hmy,
+      c1.hunit,
+      c1.hTenant
+    FROM
+      camrule c1
+      INNER JOIN unit u1 On u1.hMy = c1.hUnit
+      INNER JOIN g2UnitType ut On ut.hUnitType = u1.HUNITTYPE
+      LEFT OUTER JOIN param pm On pm.hChart = 0
+    WHERE
+      convert(date, c1.dtfrom, 101) >= convert(datetime, N'#AsOfDate#', 101)
+      and c1.hChargeCode In(pm.hRentChgCode, ut.hRentChargeCode)
+    GROUP BY
+      c1.hunit,
+      c1.hTenant
+  ) maxcam on maxcam.hunit = u.hmy
+  and maxcam.hTenant = t.hMyPerson
+  left outer join camrule c ON c.hMy = maxcam.hMy
+  
+  /*added part*/
+  LEFT OUTER JOIN (
+    SELECT MAX(c2.hmy) hmy, c2.hunit, c2.hTenant
+    FROM camrule c2
+    INNER JOIN unit u2       ON u2.hMy = c2.hUnit
+    INNER JOIN g2UnitType ut2 ON ut2.hUnitType = u2.HUNITTYPE
+    LEFT  OUTER JOIN param pm2 ON pm2.hChart = 0
+    WHERE c2.dtFrom <= CONVERT(datetime, N'#AsOfDate#', 101)
+      AND c2.hChargeCode IN (pm2.hRentChgCode, ut2.hRentChargeCode)
+      AND c2.hmy <
+          (SELECT MAX(c3.hmy)
+           FROM camrule c3
+           WHERE c3.hUnit = c2.hUnit
+             AND c3.hTenant = c2.hTenant
+             AND c3.hChargeCode IN (pm2.hRentChgCode, ut2.hRentChargeCode)
+             AND c3.dtFrom <= CONVERT(datetime, N'#AsOfDate#', 101))
+    GROUP BY c2.hunit, c2.hTenant
+) prevcam ON prevcam.hunit = u.hmy
+         AND prevcam.hTenant = t.hMyPerson
+LEFT OUTER JOIN camrule cprev ON cprev.hMy = prevcam.hMy
+
+/*LEFT OUTER JOIN #tempDeposits dep ON dep.TenantId = t.hMyperson AND dep.hUnit = u.hMy */
+  inner join tenstatus ts on (t.istatus = ts.istatus)
+  left outer join memo mem on t.HMYPERSON = mem.HFILERCD
+  AND mem.IFILETYPE = 1
+  and mem.ifield = 1
+  
+where
+  ux.dtLeaseFrom >= convert(datetime, N'01/01/2025', 101)
+  AND p.itype = 3
+  AND ts.istatus not in (1,7) /*exclude canceled and past */
+  #conditions#
+Group by td.lsDesc,
+  p.scode,
+  p.saddr1,
+  p.hmy,
+  u.hmy,
+  t.hmyperson,
+  u.scode,
+  u.sRent,
+  ut.sdesc,
+  t.scode,
+  p.scode,
+  t.slastname,
+  t.sfirstname,
+  isnull(c.DESTIMATED, 0),
+  us.sstatus,
+  ts.status,
+  ux.dtleasefrom,
+  ux.dtleaseto,
+  ux.dtmovein,
+  ux.dtmoveout,
+  ux.dtNotice,
+  ux.bActive,
+  mem.stext,
+  t.semail,
+  t.istatus,
+  t.hprospect,
+  ts.iStatus,
+  ux.iNoticeType,
+  c.dtfrom,
+  c.destimated,
+  cprev.destimated,
+  ut.hmy
+Order By
+  /*putcode1,*/
+  ts.istatus,
+  ux.dtLeaseFrom
+  
+
+
+
+//end select 

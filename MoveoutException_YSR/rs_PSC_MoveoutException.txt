@@ -1,0 +1,32 @@
+//notes 
+  Script Name : rs_PSC_MoveoutException.txt
+  Client Name : Public Storage
+  Created On  : 2025-08-26
+  Created By  : Beril Pehlivan
+  Description : YSR - Move Out Exception Report for move outs that were back dated more than 2 days
+  Modified On : 
+
+//end notes 
+
+
+
+//select display 
+
+
+select 
+p.hmy phmy, p.scode Property_Code, p.saddr1 PropertyName,
+te.sfirstname + ' ' + te.slastname Tenant_Name, te.scode Tenant_Code, u.scode Unit_Code,
+case when te.istatus = 1 then 'Past' end as Tenant_Status,
+cast(te.dtmoveout as Date) as MoveOut_Date, cast(te.dtlastmodified as Date) as LastModified_Date, 
+DATEDIFF(DAY, te.dtmoveout, te.dtlastmodified) AS MoveOut_Exception
+from tenant te
+inner join unitxref ux on ux.htenant = te.hmyperson
+inner join unit u on u.hmy = te.hunit and ux.hunit = u.hmy 
+inner join property p on p.hmy = te.hproperty
+where 1=1 and
+DATEDIFF(day, te.dtmoveout, te.dtlastmodified) > 2
+and te.istatus = 1
+
+
+
+//end select 
