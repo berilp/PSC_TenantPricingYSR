@@ -179,6 +179,7 @@ Select
   u.HMY UnitID,
   t.HMYPERSON TenantID,
   ut.sdesc as UnitType,
+  ut.srent as UTPrice,
   u.srent as UnitRent,
   u.sCode uscode,
   t.sCode tscode,
@@ -206,11 +207,17 @@ t.semail email,
   AND Isnull(ux.bActive, 0) = 0 then 1 when isnull(ux.bActive, 0) = -1
   AND ux.dtNotice is null
   AND t.iStatus NOT IN(2, 6) then 0 when isnull(ux.bActive, 0) = -1
+  AND t.istatus not in (2, 6)
   AND ux.dtNotice is not null then case when ux.iNoticeType = 1 then 3 else 4 end else ts.istatus end TenantStatus,
   t.hProspect ProspectId,
   ISNULL(c.DESTIMATED, 0) AS CurrentPrice,
 c.dtFrom                AS LastPriceChangeDate,
-ISNULL(cprev.DESTIMATED, 0) AS LastPrice,
+/*ISNULL(cprev.DESTIMATED, 0) AS LastPrice,*/
+CASE 
+  WHEN ISNULL(cprev.DESTIMATED, 0) = 0 
+       THEN NULLIF(ISNULL(c.DESTIMATED, 0), 0)
+  ELSE NULLIF(cprev.DESTIMATED, 0)
+END AS LastPrice,
 
    CASE WHEN upper(us.sStatus) = N'NOTICE RENTED' then Case WHEN t.scode IS NULL THEN 0
                                                            ELSE sum(CASE c.iestimatetype 
@@ -312,7 +319,7 @@ LEFT OUTER JOIN camrule cprev ON cprev.hMy = prevcam.hMy
 where
   ux.dtLeaseFrom >= convert(datetime, N'01/01/2025', 101)
   AND p.itype = 3
-  AND ts.istatus not in (1,7) /*exclude canceled and past */
+  AND ts.istatus not in (1,7, 2, 6, 8) /*exclude canceled and past and future and applicant  */
   #conditions#
 Group by td.lsDesc,
   p.scode,
@@ -323,6 +330,7 @@ Group by td.lsDesc,
   u.scode,
   u.sRent,
   ut.sdesc,
+  ut.srent,
   t.scode,
   p.scode,
   t.slastname,
